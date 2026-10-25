@@ -1,4 +1,4 @@
-# ChronosMatch - Mid-Project Review Kit (Weeks 1-2)
+# ChronosMatch - Mid-Project Review Kit (Weeks 1-2) 
 
 ## 0. Setup (5 min)
 ```
