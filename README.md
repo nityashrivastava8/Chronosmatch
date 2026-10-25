@@ -38,23 +38,4 @@ still runs on the pure-Python engine (`engine_py.py`) - that is also your BASELI
 7. **Benchmark.** Run `python engine_runner.py --no-ui --duration 15` once with the .so
    present and once after temporarily renaming it; note orders/s for each.
 
-## 3. Mid-review checklist (what to demo / submit)
-- [ ] Live demo: firehose at 100k orders/s -> dashboard updating, ring backlog near 0
-- [ ] `ipc_audit.py` output: 1M orders, integrity OK, speedup vs `multiprocessing.Queue`
-- [ ] `verify_engine.py` output: all green (buy matches sell, price/time priority, partial fills, multi-level sweep, fuzz vs naive reference)
-- [ ] Cython vs pure-Python throughput numbers
-- [ ] Short doc: architecture diagram (firehose -> mmap ring -> Cython engine -> curses UI) + ring record layout table
-- [ ] Code on GitHub with commits per feature (version control is graded)
-
-## 4. Known limits (state them honestly in your report)
-- Single-producer/single-consumer only. No lock needed, but not safe with 2 producers.
-- Memory ordering: C side uses full barriers; the Python producer relies on x86 ordering plus
-  interpreter overhead. On ARM (Apple Silicon) this is fine in practice here but is not formally guaranteed.
-- The engine has no cancel/modify yet; price range is 0..99,999 ticks (change `PRICE_LEVELS`).
-- "Websocket" feed is simulated in-process; a real `websockets` client can be added in front of `push()`.
-
-## 5. Hooks for Weeks 3-4
-- Latency: orders already carry `ts_ns` (perf_counter_ns); subtract at match time (Week 3).
-- Run `cython -a matching_engine.pyx` (setup.py already writes `matching_engine.html`):
-  any yellow line inside `_submit` = Python interaction to remove.
-- Ledger flush: `recent_trades()` / trade log is a C circular array ready to be flushed to SQLite.
+.
