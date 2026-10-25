@@ -1,6 +1,6 @@
 # ChronosMatch - Mid-Project Review Kit (Weeks 1-2)
 
-## 0. Setup (5 min)
+## 0. Setup 
 ```
 python --version                      # 3.9+
 pip install "cython>=3.0" setuptools  # Windows also: pip install windows-curses
