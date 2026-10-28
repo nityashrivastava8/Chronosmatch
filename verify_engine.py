@@ -4,12 +4,17 @@
 The suite runs against the pure-Python engine always, and ALSO against the
 compiled Cython engine when it has been built (python setup.py build_ext --inplace).
 """
+import gc
 import random
+import sys
+import threading
+import time
 import unittest
 
 from config import BUY, SELL
-from ring_buffer import RingBuffer
+from ring_buffer import RingBuffer, TradeRing
 import engine_py
+import ledger_writer
 
 try:
     import matching_engine as cy
@@ -135,6 +140,151 @@ class EngineTests:
         self.assertEqual(got, ref.trades)
         self.assertEqual(e.depth(10**6), ref.depth())
 
+    # ------------------------------------------------------------------ Week 3
+    def test_latency_histogram(self):
+        e = self.new()
+        rng = random.Random(5)
+        for oid in range(1, 1_001):
+            e.submit(oid, 10_000 + rng.randint(-5, 5), rng.randint(1, 20), rng.choice((0, 1)),
+                     self.clock() - 1_000)                      # pretend created 1 us earlier
+        st = e.latency_stats()
+        self.assertEqual(st["match"]["count"], 1_000)
+        self.assertEqual(st["e2e"]["count"], 1_000)
+        m = st["match"]
+        self.assertLessEqual(m["p50"], m["p99"])
+        self.assertLessEqual(m["p99"], m["p999"])
+        self.assertLessEqual(m["p999"], m["max"])
+        self.assertGreaterEqual(st["e2e"]["p50"], 1_000 * 7 // 8)   # >= the 1 us we added (12% bucket error)
+        e.reset_latency()
+        self.assertEqual(e.latency_stats()["match"]["count"], 0)
+
+    def test_latency_can_be_switched_off(self):
+        e = self.Engine(measure=False, **SMALL)
+        for oid in range(1, 101):
+            e.submit(oid, 10_000, 5, oid & 1, self.clock())
+        self.assertEqual(e.latency_stats()["match"]["count"], 0)
+        self.assertEqual(e.orders_processed, 100)
+
+    def test_bad_timestamps_do_not_poison_e2e(self):
+        e = self.new()
+        e.submit(1, 10_000, 5, BUY, self.clock() + 10**12)      # "from the future"
+        e.submit(2, 10_000, 5, BUY, 1)                          # ancient / other clock
+        st = e.latency_stats()
+        self.assertEqual(st["e2e"]["count"], 0)
+        self.assertEqual(st["e2e_skipped"], 2)
+
+    # ------------------------------------------------------------------ Week 4
+    def test_whale_detection(self):
+        e = self.Engine(whale_levels=3, whale_qty=50, **SMALL)
+        for i, px in enumerate([10_000, 10_001, 10_002, 10_003]):
+            e.submit(i + 1, px, 100, SELL)
+        e.submit(50, 10_003, 10, BUY)                           # small: 1 level, 10 shares
+        self.assertEqual(e.whale_count, 0)
+        e.submit(51, 10_003, 350, BUY)                          # clears 10_000 (rest), 10_001, 10_002 ...
+        self.assertEqual(e.whale_count, 1)
+        taker, side, levels, qty, first_px, last_px, _ = e.recent_whales(1)[0]
+        self.assertEqual((taker, side, levels, qty), (51, BUY, 3, 350))
+        self.assertEqual((first_px, last_px), (10_000, 10_003))
+
+    def test_two_levels_is_not_a_whale(self):
+        e = self.Engine(whale_levels=3, whale_qty=1, **SMALL)
+        e.submit(1, 10_000, 10, SELL)
+        e.submit(2, 10_001, 10, SELL)
+        e.submit(3, 10_001, 20, BUY)
+        self.assertEqual(e.whale_count, 0)
+
+    def test_trades_stream_into_trade_ring(self):
+        ring = RingBuffer("chronos_test.ring", 1 << 10, create=True)
+        tring = TradeRing("chronos_test_t.ring", 1 << 10, create=True)
+        try:
+            e, direct = self.new(), self.new()
+            rng = random.Random(11)
+            for oid in range(1, 501):
+                o = (oid, 10_000 + rng.randint(-5, 5), rng.randint(1, 30), rng.choice((0, 1)))
+                ring.push(*o)
+                direct.submit(*o)
+            e.drain(ring.mm, 0, tring.mm)
+            self.assertEqual(tring.pending(), direct.trades_count)
+            recs, first, new_r = tring.read_batch(10_000)
+            self.assertEqual(first, 0)
+            self.assertEqual(len(recs), direct.trades_count)
+            expected = [t[:4] for t in direct.recent_trades(10**6)[::-1]]
+            self.assertEqual([(r[0], r[1], r[2], r[3]) for r in recs], expected)
+            self.assertTrue(all(r[5] > 0 for r in recs))        # match_ns always stamped
+            self.assertEqual(e.trades_dropped, 0)
+        finally:
+            ring.close(unlink=True)
+            tring.close(unlink=True)
+
+    def test_trade_ring_backpressure_with_live_consumer(self):
+        """Tiny trade ring (16 slots) + a consumer thread: nothing may be lost or reordered."""
+        ring = RingBuffer("chronos_test.ring", 1 << 12, create=True)
+        tring = TradeRing("chronos_test_t.ring", 16, create=True)
+        got, stop = [], threading.Event()
+
+        def consumer():
+            while True:
+                recs, first, new_r = tring.read_batch(8)
+                if recs:
+                    got.extend((first + i, r[0], r[1]) for i, r in enumerate(recs))
+                    tring.commit_read(new_r)
+                elif stop.is_set() and tring.pending() == 0:
+                    return
+                else:
+                    time.sleep(0)
+
+        t = threading.Thread(target=consumer)
+        try:
+            e, direct = self.new(), self.new()
+            rng = random.Random(3)
+            for oid in range(1, 1_501):
+                o = (oid, 10_000 + rng.randint(-4, 4), rng.randint(1, 40), rng.choice((0, 1)))
+                ring.push(*o)
+                direct.submit(*o)
+            t.start()
+            e.drain(ring.mm, 0, tring.mm)
+            stop.set()
+            t.join(timeout=30)
+            self.assertFalse(t.is_alive())
+            self.assertEqual(e.trades_dropped, 0)
+            self.assertEqual(len(got), direct.trades_count)
+            self.assertEqual([g[0] for g in got], list(range(direct.trades_count)))   # in order
+            expected = [(t_[0], t_[1]) for t_ in direct.recent_trades(10**6)[::-1]]
+            self.assertEqual([(g[1], g[2]) for g in got], expected)
+        finally:
+            stop.set()
+            ring.close(unlink=True)
+            tring.close(unlink=True)
+
+    def test_ledger_stores_every_trade_exactly_once(self):
+        ring = RingBuffer("chronos_test.ring", 1 << 11, create=True)
+        tring = TradeRing("chronos_test_t.ring", 1 << 12, create=True)
+        con = ledger_writer.connect(":memory:")
+        try:
+            e = self.new()
+            rng = random.Random(21)
+            for oid in range(1, 1_201):
+                ring.push(oid, 10_000 + rng.randint(-5, 5), rng.randint(1, 30), rng.choice((0, 1)))
+            e.drain(ring.mm, 0, tring.mm)
+            stored = ledger_writer.flush_once(tring, con, max_batch=100)       # several batches
+            while True:
+                n = ledger_writer.flush_once(tring, con, max_batch=100)
+                if not n:
+                    break
+                stored += n
+            self.assertEqual(stored, e.trades_count)
+            self.assertEqual(con.execute("SELECT COUNT(*) FROM trades").fetchone()[0], e.trades_count)
+            lo, hi = con.execute("SELECT MIN(seq), MAX(seq) FROM trades").fetchone()
+            self.assertEqual((lo, hi), (0, e.trades_count - 1))
+            # crash between COMMIT and commit_read: the writer restarts from the old read index
+            tring.commit_read(0)
+            self.assertEqual(ledger_writer.flush_once(tring, con, max_batch=10**6), e.trades_count)
+            self.assertEqual(con.execute("SELECT COUNT(*) FROM trades").fetchone()[0], e.trades_count)
+        finally:
+            con.close()
+            ring.close(unlink=True)
+            tring.close(unlink=True)
+
     def test_drain_from_shared_memory_ring(self):
         ring = RingBuffer("chronos_test.ring", 1 << 10, create=True)
         try:
@@ -154,11 +304,33 @@ class EngineTests:
 
 class TestPythonEngine(EngineTests, unittest.TestCase):
     Engine = engine_py.MatchingEngine
+    clock = staticmethod(engine_py.clock_ns)
 
 
 @unittest.skipIf(cy is None, "Cython engine not built (python setup.py build_ext --inplace)")
 class TestCythonEngine(EngineTests, unittest.TestCase):
     Engine = cy.MatchingEngine if cy else None
+    clock = staticmethod(cy.clock_ns) if cy else None
+
+    def test_clock_matches_python_perf_counter(self):
+        """Producer (Python) and engine (C) must share a clock, or end-to-end latency is meaningless."""
+        a, b, c = time.perf_counter_ns(), cy.clock_ns(), time.perf_counter_ns()
+        self.assertLessEqual(a - 1_000_000, b)
+        self.assertLessEqual(b, c + 1_000_000)
+
+    def test_drain_allocates_no_python_objects(self):
+        ring = RingBuffer("chronos_test.ring", 1 << 15, create=True)
+        try:
+            for oid in range(1, 20_001):
+                ring.push(oid, 10_000 + (oid % 9) - 4, 1 + oid % 50, oid & 1)
+            e = self.new()
+            gc.collect()
+            before = sys.getallocatedblocks()
+            e.drain(ring.mm)
+            after = sys.getallocatedblocks()
+            self.assertLess(abs(after - before), 50)
+        finally:
+            ring.close(unlink=True)
 
 
 class TestRingBuffer(unittest.TestCase):
@@ -178,6 +350,27 @@ class TestRingBuffer(unittest.TestCase):
             self.assertEqual(ring.pending(), 8)
         finally:
             ring.close(unlink=True)
+
+    def test_trade_ring_roundtrip_wrap_and_close_flag(self):
+        tr = TradeRing("chronos_test3.ring", 8, create=True)
+        try:
+            self.assertFalse(tr.is_closed())
+            seq = 0
+            for i in range(50):                              # 50 records through 8 slots
+                self.assertTrue(tr.push(i, i + 1, 10_000 + i, 5, 111, 222))
+                recs, first, new_r = tr.read_batch(100)
+                self.assertEqual((first, len(recs)), (seq, 1))
+                self.assertEqual(recs[0], (i, i + 1, 10_000 + i, 5, 111, 222))
+                tr.commit_read(new_r)
+                seq += 1
+            for i in range(8):
+                self.assertTrue(tr.push(i, 0, 1, 1, 0, 0))
+            self.assertFalse(tr.push(9, 0, 1, 1, 0, 0))     # full
+            tr.mark_closed()
+            self.assertTrue(tr.is_closed())
+            self.assertGreater(tr.run_id, 0)
+        finally:
+            tr.close(unlink=True)
 
 
 if __name__ == "__main__":
