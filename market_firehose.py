@@ -13,7 +13,7 @@ from config import BUY, MID_PRICE, SELL, default_ring_path
 from ring_buffer import RingBuffer
 
 
-async def firehose(ring, rate, total, seed=42, whale_prob=0.002):
+async def firehose(ring, rate, total, seed=42, whale_prob=0.00002):
     rng = random.Random(seed)
     rand, gauss, randint = rng.random, rng.gauss, rng.randint
     push = ring.push
@@ -50,6 +50,7 @@ def main():
     ap.add_argument("--duration", type=float, default=10, help="seconds (0 = forever)")
     ap.add_argument("--path", default=default_ring_path())
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--whale-prob", type=float, default=0.00002, help="chance an order is a whale (default ~2 per second at 100k/s)")
     a = ap.parse_args()
 
     try:
@@ -57,7 +58,7 @@ def main():
     except FileNotFoundError:
         raise SystemExit("Ring buffer not found - start engine_runner.py first.")
     total = int(a.rate * a.duration) if a.duration else 0
-    sent, elapsed, stalls = asyncio.run(firehose(ring, a.rate, total, a.seed))
+    sent, elapsed, stalls = asyncio.run(firehose(ring, a.rate, total, a.seed, a.whale_prob))
     print(f"sent {sent:,} orders in {elapsed:.2f}s = {sent / elapsed:,.0f} orders/s "
           f"(ring-full stalls: {stalls})")
 
