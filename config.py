@@ -37,6 +37,25 @@ PRICE_LEVELS = 100_000              # engine supports prices 0 .. 99,999 ticks
 MID_PRICE = 10_000                  # $100.00
 
 
+# ---- Trade ring (engine -> ledger writer), 48-byte records ------------------
+#   taker_id u64 | maker_id u64 | price i64 | qty u32 | pad u32 |
+#   ts_ns u64 (when the order was created) | match_ns u64 (when it entered the engine)
+TRADE_FORMAT = "<QQqI4xQQ"
+TRADE_SIZE = 48
+MAGIC_TRADE = 0xC4120906
+CLOSED_OFF = 24                     # header: 1 = engine finished, ledger may exit when empty
+RUN_OFF = 32                        # header: run id (time.time_ns() when the ring was created)
+DEFAULT_TRADE_CAPACITY = 1 << 18    # 262,144 slots = 12 MiB
+
+WHALE_LEVELS = 3                    # a "whale" clears >= 3 price levels ...
+WHALE_MIN_QTY = 1000                # ... AND fills at least this many shares
+DEFAULT_DB = "trades.db"
+
+
+def default_trade_ring_path() -> str:
+    return default_ring_path() + ".trades"
+
+
 def default_ring_path() -> str:
     """Shared-memory file. /dev/shm is a RAM-backed filesystem on Linux; on
     macOS/Windows we fall back to the temp dir (still a memory-mapped file)."""
