@@ -1,0 +1,30 @@
+[
+  {
+    "engine": "python",
+    "measure": false,
+    "orders": 500000,
+    "trades": 344169,
+    "seconds": 1.322376299998723,
+    "orders_per_s": 378107.19989497913,
+    "ns_per_order": 2644.752599997446,
+    "whales": 79,
+    "p50_ns": 0,
+    "p99_ns": 0,
+    "p999_ns": 0,
+    "max_ns": 0
+  },
+  {
+    "engine": "python",
+    "measure": true,
+    "orders": 500000,
+    "trades": 344169,
+    "seconds": 1.4466084000014234,
+    "orders_per_s": 345636.04082453,
+    "ns_per_order": 2893.216800002847,
+    "whales": 79,
+    "p50_ns": 1152,
+    "p99_ns": 5632,
+    "p999_ns": 24576,
+    "max_ns": 23292200
+  }
+]
