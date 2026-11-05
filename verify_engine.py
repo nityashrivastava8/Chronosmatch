@@ -5,21 +5,32 @@ The suite runs against the pure-Python engine always, and ALSO against the
 compiled Cython engine when it has been built (python setup.py build_ext --inplace).
 """
 import gc
+import importlib
 import random
 import sys
 import threading
 import time
 import unittest
+from typing import TYPE_CHECKING, Any
 
 from config import BUY, SELL
 from ring_buffer import RingBuffer, TradeRing
 import engine_py
 import ledger_writer
 
+cy: Any                                                # Any -> the editor does not complain about None
 try:
-    import matching_engine as cy
+    cy = importlib.import_module("matching_engine")    # compiled engine, if it has been built
 except ImportError:
     cy = None
+
+# EngineTests is a *mixin* (collected only through the two subclasses below). For the
+# editor's type checker we pretend it is a TestCase so self.assertEqual etc. are known;
+# at run time it is a plain object, so unittest does not run it on its own.
+if TYPE_CHECKING:
+    _MixinBase = unittest.TestCase
+else:
+    _MixinBase = object
 
 SMALL = dict(levels=20_000, max_orders=200_000, trade_log=1 << 16)
 
@@ -60,8 +71,9 @@ class NaiveBook:
         return agg(self.bids, True), agg(self.asks, False)
 
 
-class EngineTests:
-    Engine = None
+class EngineTests(_MixinBase):
+    Engine: Any = None
+    clock: Any = None
 
     def new(self):
         return self.Engine(**SMALL)
@@ -168,10 +180,13 @@ class EngineTests:
     def test_bad_timestamps_do_not_poison_e2e(self):
         e = self.new()
         e.submit(1, 10_000, 5, BUY, self.clock() + 10**12)      # "from the future"
-        e.submit(2, 10_000, 5, BUY, 1)                          # ancient / other clock
+        bad = 1
+        if self.clock() > 120 * 10**9:                          # "ancient" only possible if the clock
+            e.submit(2, 10_000, 5, BUY, 1)                      # has run > 60 s (not right after boot)
+            bad = 2
         st = e.latency_stats()
         self.assertEqual(st["e2e"]["count"], 0)
-        self.assertEqual(st["e2e_skipped"], 2)
+        self.assertEqual(st["e2e_skipped"], bad)
 
     # ------------------------------------------------------------------ Week 4
     def test_whale_detection(self):
@@ -340,11 +355,15 @@ class TestRingBuffer(unittest.TestCase):
             for i in range(8):
                 self.assertTrue(ring.push(i, 100, 1, 0))
             self.assertFalse(ring.push(8, 100, 1, 0))        # full -> back-pressure
-            self.assertEqual(ring.pop()[0], 0)               # free one slot
+            rec = ring.pop()                                 # free one slot
+            assert rec is not None
+            self.assertEqual(rec[0], 0)
             self.assertTrue(ring.push(8, 100, 1, 0))         # now it fits
             nxt = 1
             for i in range(9, 200):                          # many laps around the ring
-                self.assertEqual(ring.pop()[0], nxt)
+                rec = ring.pop()
+                assert rec is not None
+                self.assertEqual(rec[0], nxt)
                 nxt += 1
                 self.assertTrue(ring.push(i, 100, 1, 0))
             self.assertEqual(ring.pending(), 8)
