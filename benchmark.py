@@ -7,6 +7,7 @@ measurement on and off. Writes benchmark_results.json and RESULTS.md.
     python benchmark.py [--n 500000]
 """
 import argparse
+import importlib
 import json
 import platform
 import time
@@ -16,7 +17,7 @@ from ring_buffer import RingBuffer
 
 import engine_py
 try:
-    import matching_engine as cy
+    cy = importlib.import_module("matching_engine")    # compiled engine, if it has been built
 except ImportError:
     cy = None
 
@@ -28,7 +29,7 @@ def run_one(engine_cls, name, orders, measure, path):
     ring = RingBuffer(path, cap, create=True)
     try:
         for o in orders:
-            ring.push(*o, 0)                    # ts=0 -> end-to-end latency skipped here
+            ring.push(o[0], o[1], o[2], o[3], 0)    # ts=0 -> end-to-end latency skipped here
         eng = engine_cls(measure=measure)
         t0 = time.perf_counter()
         n = eng.drain(ring.mm)
