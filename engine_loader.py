@@ -1,8 +1,16 @@
-"""Import the compiled Cython engine if it has been built, else fall back to
-the pure-Python one so every script still runs."""
+"""Pick the matching engine: the compiled Cython one if it has been built,
+otherwise the pure-Python one (so every script still runs).
+
+importlib is used on purpose: it keeps editors (Pylance) from flagging an
+'unresolved import' while the Cython module has not been compiled yet."""
+import importlib
+
 try:
-    from matching_engine import MatchingEngine, clock_ns   # compiled C extension
+    _engine = importlib.import_module("matching_engine")    # compiled C extension
     BACKEND = "cython"
 except ImportError:
-    from engine_py import MatchingEngine, clock_ns
+    _engine = importlib.import_module("engine_py")          # pure-Python fallback
     BACKEND = "python"
+
+MatchingEngine = _engine.MatchingEngine
+clock_ns = _engine.clock_ns
