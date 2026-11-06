@@ -91,11 +91,14 @@ python ipc_audit.py               # 1M orders between two processes vs pickle
 ## Screenshots
 | Live dashboard | Acceptance tests |
 |---|---|
-| ![Dashboard](docs/images/dashboard.png) | ![Acceptance tests](docs/images/acceptance.png) |
+<img width="988" height="429" alt="dashboard_3" src="https://github.com/user-attachments/assets/31a31658-7380-4276-b4ab-a9d6dfe0f4da" />
+ | <img width="972" height="958" alt="acceptance_tests" src="https://github.com/user-attachments/assets/9c517aed-7f73-43c5-a77f-93b19e4cf9fb" />
+
 
 | Ledger audit | Benchmark |
 |---|---|
-| ![Audit](docs/images/audit.png) | <img width="970" height="509" alt="benchmark" src="https://github.com/user-attachments/assets/66c4ed1f-14a4-4230-bf49-674c6d12c28e" />
+<img width="993" height="461" alt="audit_check" src="https://github.com/user-attachments/assets/becfb300-3b6f-4818-95f8-9acc68ff4ce6" />
+ | <img width="970" height="509" alt="benchmark" src="https://github.com/user-attachments/assets/66c4ed1f-14a4-4230-bf49-674c6d12c28e" />
  
 
 ## Results
@@ -122,4 +125,4 @@ multiple producers/consumers, ClickHouse (SQLite only), production hardening.
 Order cancel/modify, multi-symbol books, real market-data adapter, ClickHouse ledger, Prometheus metrics.
 
 ## Author
-**[Your name]** - Python Development Intern, Infotact Solutions<img width="972" height="958" alt="acceptance tests" src="https://github.com/user-attachments/assets/a05f905c-2ba5-4cde-a925-73f54be8e8b3" />
+**[Your name]** - Python Development Intern, Infotact Solutions
