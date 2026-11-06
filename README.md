@@ -89,26 +89,51 @@ python ipc_audit.py               # 1M orders between two processes vs pickle
 `trades.db` is created by each run and is not committed (see `docs/sample_trades.csv` for a sample).
 
 ## Screenshots
-| Live dashboard | Acceptance tests |
-|---|---|
-<img width="988" height="429" alt="dashboard_3" src="https://github.com/user-attachments/assets/31a31658-7380-4276-b4ab-a9d6dfe0f4da" />
- | <img width="972" height="958" alt="acceptance_tests" src="https://github.com/user-attachments/assets/9c517aed-7f73-43c5-a77f-93b19e4cf9fb" />
+
+### Live dashboard
+Order book, spread, throughput, latency in microseconds, ledger backlog and the red **WHALE** alert (100,000 orders/s):
+
+![Live dashboard with whale alert]<img width="891" height="692" alt="dashboard_2" src="https://github.com/user-attachments/assets/7b34c496-373c-41b0-87b3-14fb56d17cae" />
 
 
-| Ledger audit | Benchmark |
+### Run summary (3,000,000 orders, 30 s)
+![Run summary]<img width="988" height="429" alt="dashboard_3" src="https://github.com/user-attachments/assets/ed7e20ba-0605-40e6-a570-fa6f2a3e5ed4" />
+
+
+### Verification and audits
+| Unit tests (42) | Acceptance tests |
 |---|---|
-<img width="993" height="461" alt="audit_check" src="https://github.com/user-attachments/assets/becfb300-3b6f-4818-95f8-9acc68ff4ce6" />
- | <img width="970" height="509" alt="benchmark" src="https://github.com/user-attachments/assets/66c4ed1f-14a4-4230-bf49-674c6d12c28e" />
- 
+| ![Unit tests]<img width="992" height="700" alt="verify_engine" src="https://github.com/user-attachments/assets/79d8043c-4be2-4f0d-8cbe-d3159f5a122c" />
+ | ![Acceptance tests]<img width="972" height="958" alt="acceptance_tests" src="https://github.com/user-attachments/assets/f64428a0-154d-491a-b720-b0af5f330e92" />
+ |
+
+| Ledger audit | IPC audit (1M orders) |
+|---|---|
+| ![Ledger audit]<img width="993" height="461" alt="audit_check" src="https://github.com/user-attachments/assets/a7789fe2-a808-428c-ad10-a4087253ebe0" />
+ | ![IPC audit]<img width="991" height="464" alt="ipc_audit" src="https://github.com/user-attachments/assets/5d7b4549-a243-422c-822b-2befebfc5925" />
+ |
+
+| Benchmark | GC proof (pure-Python baseline) |
+|---|---|
+| ![Benchmark]<img width="970" height="509" alt="benchmark" src="https://github.com/user-attachments/assets/973a14ca-f9ec-4522-b2b6-14d23626d237" />
+ | ![GC proof]<img width="986" height="483" alt="gc_proof" src="https://github.com/user-attachments/assets/8b9085d1-ff4b-43d7-b4af-9474dfe5f303" />
+ |
+
+> These runs used the pure-Python engine (`engine=python`); the Cython engine could not be built on this machine.
+> The GC-proof screenshot therefore shows the *baseline* (objects allocated, GC runs) that the Cython engine is designed to avoid.
 
 ## Results
-Measured on my machine (see `RESULTS.md` for the full table; numbers vary by hardware):
+Measured on my laptop (12 CPU cores, Windows, Python engine). Full output in `RESULTS.md`.
 
-| Metric | Pure Python | Cython |
-|---|---|---|
-| Orders / second | _fill in_ | _fill in_ |
-| Engine latency p99 | _fill in_ | _fill in_ |
-| Trades dropped / lost | 0 | 0 |
+| Metric | Result |
+|---|---|
+| Live run | 3,000,000 orders at ~100,000/s, 2,027,156 trades, **0 trades dropped** |
+| Ledger audit | 2,027,156 rows in SQLite = engine trades, no gaps or duplicates (**PASS**) |
+| Engine latency (live run) | p50 1.0 us, p99 7.2 us, p99.9 24.6 us (rare pauses reach milliseconds in pure Python) |
+| Engine throughput (`benchmark.py`, 500k orders) | 616,658 orders/s, p99 3.1 us |
+| IPC audit | 1,000,000 orders between 2 processes in 0.58 s, integrity OK, **12.7x faster** than a pickled `multiprocessing.Queue` |
+| Tests | 42 unit/fuzz tests OK; acceptance tests 10 passed, 0 failed, 1 skipped (needs Cython) |
+| Cython engine | implemented (`matching_engine.pyx`) but not benchmarked - C build not available on this machine |
 
 ## Scope
 **In scope:** shared-memory IPC, limit order book (buy/sell, price-time priority), latency measurement, ledger and
@@ -125,4 +150,4 @@ multiple producers/consumers, ClickHouse (SQLite only), production hardening.
 Order cancel/modify, multi-symbol books, real market-data adapter, ClickHouse ledger, Prometheus metrics.
 
 ## Author
-**[Your name]** - Python Development Intern, Infotact Solutions
+NITYA SHRIVASTAV - Python Development Intern, Infotact Solutions
