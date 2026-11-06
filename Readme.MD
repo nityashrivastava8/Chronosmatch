@@ -36,6 +36,8 @@ python audit_ledger.py                      # ledger rows == engine trades, no g
 python gc_proof.py                          # Cython: PASS = 0 objects, 0 GC runs
 python benchmark.py --n 500000              # writes RESULTS.md + benchmark_results.json
 python ipc_audit.py                         # 1M orders between 2 processes
+python verify_engine.py
+python acceptance_tests.py
 ```
 
 ## 4. What "correct" looks like
