@@ -95,7 +95,7 @@ python ipc_audit.py               # 1M orders between two processes vs pickle
 
 | Ledger audit | Benchmark |
 |---|---|
-| ![Audit](docs/images/audit.png) | ![Benchmark](docs/images/benchmark.png) |
+| ![Audit](docs/images/audit.png) | ![Benchmark]("C:\Users\LENOVO\OneDrive\Pictures\Screenshots\benchmark.png") |
 
 ## Results
 Measured on my machine (see `RESULTS.md` for the full table; numbers vary by hardware):
