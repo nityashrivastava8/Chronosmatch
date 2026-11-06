@@ -1,0 +1,28 @@
+{
+  "backend": "python",
+  "orders_processed": 1000000,
+  "trades_count": 674771,
+  "trades_dropped": 0,
+  "rejected": 0,
+  "whales": 14,
+  "latency_ns": {
+    "measure": true,
+    "match": {
+      "count": 1000000,
+      "mean": 4020.1914,
+      "p50": 2304,
+      "p99": 18432,
+      "p999": 73728,
+      "max": 56500700
+    },
+    "e2e": {
+      "count": 1000000,
+      "mean": 14487102.836,
+      "p50": 3932160,
+      "p99": 125829120,
+      "p999": 134217728,
+      "max": 148989000
+    },
+    "e2e_skipped": 0
+  }
+}
