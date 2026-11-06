@@ -93,30 +93,30 @@ python ipc_audit.py               # 1M orders between two processes vs pickle
 ### Live dashboard
 Order book, spread, throughput, latency in microseconds, ledger backlog and the red **WHALE** alert (100,000 orders/s):
 
-![Live dashboard with whale alert]<img width="891" height="692" alt="dashboard_2" src="https://github.com/user-attachments/assets/7b34c496-373c-41b0-87b3-14fb56d17cae" />
+[Live dashboard with whale alert]<img width="891" height="692" alt="dashboard_2" src="https://github.com/user-attachments/assets/7b34c496-373c-41b0-87b3-14fb56d17cae" />
 
 
 ### Run summary (3,000,000 orders, 30 s)
-![Run summary]<img width="988" height="429" alt="dashboard_3" src="https://github.com/user-attachments/assets/ed7e20ba-0605-40e6-a570-fa6f2a3e5ed4" />
+[Run summary]<img width="988" height="429" alt="dashboard_3" src="https://github.com/user-attachments/assets/ed7e20ba-0605-40e6-a570-fa6f2a3e5ed4" />
 
 
 ### Verification and audits
 | Unit tests (42) | Acceptance tests |
 |---|---|
-| ![Unit tests]<img width="992" height="700" alt="verify_engine" src="https://github.com/user-attachments/assets/79d8043c-4be2-4f0d-8cbe-d3159f5a122c" />
- | ![Acceptance tests]<img width="972" height="958" alt="acceptance_tests" src="https://github.com/user-attachments/assets/f64428a0-154d-491a-b720-b0af5f330e92" />
+| [Unit tests]<img width="992" height="700" alt="verify_engine" src="https://github.com/user-attachments/assets/79d8043c-4be2-4f0d-8cbe-d3159f5a122c" />
+ | [Acceptance tests]<img width="972" height="958" alt="acceptance_tests" src="https://github.com/user-attachments/assets/f64428a0-154d-491a-b720-b0af5f330e92" />
  |
 
 | Ledger audit | IPC audit (1M orders) |
 |---|---|
-| ![Ledger audit]<img width="993" height="461" alt="audit_check" src="https://github.com/user-attachments/assets/a7789fe2-a808-428c-ad10-a4087253ebe0" />
- | ![IPC audit]<img width="991" height="464" alt="ipc_audit" src="https://github.com/user-attachments/assets/5d7b4549-a243-422c-822b-2befebfc5925" />
+| [Ledger audit]<img width="993" height="461" alt="audit_check" src="https://github.com/user-attachments/assets/a7789fe2-a808-428c-ad10-a4087253ebe0" />
+ | [IPC audit]<img width="991" height="464" alt="ipc_audit" src="https://github.com/user-attachments/assets/5d7b4549-a243-422c-822b-2befebfc5925" />
  |
 
 | Benchmark | GC proof (pure-Python baseline) |
 |---|---|
-| ![Benchmark]<img width="970" height="509" alt="benchmark" src="https://github.com/user-attachments/assets/973a14ca-f9ec-4522-b2b6-14d23626d237" />
- | ![GC proof]<img width="986" height="483" alt="gc_proof" src="https://github.com/user-attachments/assets/8b9085d1-ff4b-43d7-b4af-9474dfe5f303" />
+| [Benchmark]<img width="970" height="509" alt="benchmark" src="https://github.com/user-attachments/assets/973a14ca-f9ec-4522-b2b6-14d23626d237" />
+ | [GC proof]<img width="986" height="483" alt="gc_proof" src="https://github.com/user-attachments/assets/8b9085d1-ff4b-43d7-b4af-9474dfe5f303" />
  |
 
 > These runs used the pure-Python engine (`engine=python`); the Cython engine could not be built on this machine.
