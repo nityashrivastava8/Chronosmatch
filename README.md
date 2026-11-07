@@ -141,11 +141,6 @@ audit, live terminal dashboard, tests and benchmarks.
 **Out of scope:** real exchange connectivity (the feed is simulated), order cancel/modify, multiple symbols,
 multiple producers/consumers, ClickHouse (SQLite only), production hardening.
 
-##Limitations
-One producer and one consumer per ring; prices limited to 0 - 99,999 ticks.
-End-to-end latency includes time orders wait in the ring while the engine processes a batch.
-Real HFT systems use C++/hardware; this project demonstrates the techniques in Python.
-
 ## Future work
 Order cancel/modify, multi-symbol books, real market-data adapter, ClickHouse ledger, Prometheus metrics.
 
