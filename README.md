@@ -33,6 +33,13 @@ flowchart LR
     E --> D["Terminal dashboard<br/>book, latency, whales"]
 ```
 
+How it works
+Order ring (shared memory). The feed and the engine map the same file. A 128-byte header holds the write index, read index and capacity; each order is one fixed 32-byte record (ID, price, quantity, side, timestamp). The capacity is a power of two, so a slot is found with index & mask. The producer writes the record first and publishes the new write index after, so the reader never sees half a record. Only one process writes each index, so no locks are needed. When the ring is full the producer waits (back-pressure).
+Matching. Prices are integer ticks used directly as array indexes (0 - 99,999), so finding a price level is O(1). Each level is a first-in-first-out linked list whose nodes come from one pre-allocated pool, which gives price-time priority: best price first, oldest order first at the same price. Trades execute at the resting order's price. The Cython loop uses only C structs, so no Python objects are created and the garbage collector never runs during a trade.
+Latency. A C monotonic clock stamps each order when it enters and leaves the engine. Times go into a fixed 512-bucket histogram (about 12% resolution), which gives p50 / p99 / p99.9 / max with no per-order allocation. End-to-end latency compares against the producer's own timestamp.
+Ledger. The engine writes every trade into a second shared-memory ring (48-byte records). ledger_writer.py inserts them into SQLite in batches, commits, and only then frees the ring slots. Rows are keyed by (run_id, seq) with INSERT OR IGNORE, so after a crash every trade is stored exactly once.
+Whale alert. An order that clears 3 or more price levels and fills at least 1,000 shares is recorded and highlighted on the dashboard.
+
   
 ## Tech stack
 | Area | Tools |
